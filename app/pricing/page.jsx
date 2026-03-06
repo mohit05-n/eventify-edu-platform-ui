@@ -1,8 +1,8 @@
-import {  Navbar  } from "@/components/navbar"
-import {  Button  } from "@/components/ui/button"
-import {  Card, CardContent, CardHeader  } from "@/components/ui/card"
-import {  Check  } from "lucide-react"
-import {  getSession  } from "@/lib/session"
+import { Navbar } from "@/components/navbar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Check } from "lucide-react"
+import { getSession } from "@/lib/session"
 import Link from "next/link"
 
 export default async function PricingPage() {
@@ -34,7 +34,7 @@ export default async function PricingPage() {
         "Certificate generation",
         "Payment integration",
       ],
-      highlighted,
+      highlighted: true,
     },
     {
       name: "Enterprise",
