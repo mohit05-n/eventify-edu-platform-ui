@@ -1,0 +1,176 @@
+{
+  "payments": [
+    {
+      "column_name": "registration_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "booking_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "razorpay_order_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "razorpay_payment_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "razorpay_signature",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    }
+  ],
+  "events": [
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "organiser_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "start_date",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "end_date",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "max_capacity",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "current_capacity",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "price",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "speakers",
+      "data_type": "text"
+    },
+    {
+      "column_name": "title",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "schedule",
+      "data_type": "text"
+    },
+    {
+      "column_name": "category",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "image_url",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "brochure_url",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "location",
+      "data_type": "character varying"
+    }
+  ],
+  "registrations": [
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "event_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "certificate_issued",
+      "data_type": "boolean"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "issue_date",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "column_name": "certificate_url",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "certificate_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "participant_name",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "participant_email",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "participant_phone",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "booking_id",
+      "data_type": "character varying"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ export function EventCard({ event, session }) {
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [imgError, setImgError] = useState(false)
   const [showTicketDialog, setShowTicketDialog] = useState(false)
-  const [registrationData, setRegistrationData] = useState(null)
+  const [registrations, setRegistrations] = useState([])
   const [loadingTicket, setLoadingTicket] = useState(false)
 
   const startDate = new Date(event.start_date).toLocaleDateString("en-US", {
@@ -63,15 +63,15 @@ export function EventCard({ event, session }) {
 
   const handleViewTicket = async () => {
     setShowTicketDialog(true)
-    if (registrationData) return // already fetched
+    if (registrations.length > 0) return // already fetched
     setLoadingTicket(true)
     try {
       const res = await fetch(`/api/registrations/get`)
       if (res.ok) {
         const data = await res.json()
         const regs = Array.isArray(data) ? data : []
-        const reg = regs.find(r => String(r.event_id) === String(event.id))
-        setRegistrationData(reg || null)
+        const matchedRegs = regs.filter(r => String(r.event_id) === String(event.id))
+        setRegistrations(matchedRegs)
       }
     } catch (err) {
       console.error("Failed to fetch ticket:", err)
@@ -255,7 +255,7 @@ export function EventCard({ event, session }) {
               Your Ticket
             </DialogTitle>
             <DialogDescription>
-              Ticket for {event.title}
+              {registrations.length} ticket(s) found for {event.title}
             </DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
@@ -263,17 +263,22 @@ export function EventCard({ event, session }) {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
-            ) : registrationData ? (
-              <TicketCard
-                registration={{
-                  ...registrationData,
-                  event_title: event.title,
-                  event_start_date: event.start_date,
-                  event_location: event.location,
-                }}
-                userName={session?.name}
-                userEmail={session?.email}
-              />
+            ) : registrations.length > 0 ? (
+              <div className="space-y-6">
+                {registrations.map((reg, idx) => (
+                  <TicketCard
+                    key={reg.id || idx}
+                    registration={{
+                      ...reg,
+                      event_title: event.title,
+                      event_start_date: event.start_date,
+                      event_location: event.location,
+                    }}
+                    userName={session?.name}
+                    userEmail={session?.email}
+                  />
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Could not load ticket information.</p>
