@@ -1,0 +1,2 @@
+# eventify-edu-platform-ui
+
