@@ -1,16 +1,16 @@
-import {  Navbar  } from "@/components/navbar"
-import {  Card, CardContent, CardHeader  } from "@/components/ui/card"
-import {  Button  } from "@/components/ui/button"
-import {  getSession  } from "@/lib/session"
+import { Navbar } from "@/components/navbar"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { getSession } from "@/lib/session"
 import Link from "next/link"
-import {  Calendar, User, ArrowRight  } from "lucide-react"
+import { Calendar, User, ArrowRight } from "lucide-react"
 
 export default async function BlogPage() {
   const session = await getSession()
 
   const posts = [
     {
-      id,
+      id: 1,
       title: "How to Organize a Successful Hackathon",
       excerpt: "A comprehensive guide for organizers looking to host their first hackathon.",
       author: "Sarah Smith",
@@ -18,7 +18,7 @@ export default async function BlogPage() {
       category: "Guide",
     },
     {
-      id,
+      id: 2,
       title: "5 Tips for Getting the Most Out of Tech Workshops",
       excerpt: "Learn how to maximize your learning experience at technical workshops.",
       author: "John Doe",
@@ -26,7 +26,7 @@ export default async function BlogPage() {
       category: "Tips",
     },
     {
-      id,
+      id: 3,
       title: "The Future of Educational Events",
       excerpt: "Exploring how technology is transforming the way we learn and network.",
       author: "Alex Kumar",
