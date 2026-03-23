@@ -18,7 +18,11 @@ export async function POST(request) {
       participants = [{
         name: session.name,
         email: session.email,
-        phone: session.phone
+        phone: session.phone,
+        semester: "",
+        enrollmentId: "",
+        gender: "",
+        branch: ""
       }]
     }
 
@@ -61,9 +65,9 @@ export async function POST(request) {
     const createdRegistrations = []
     for (const p of participants) {
       const result = await query(
-        `INSERT INTO registrations (event_id, user_id, status, participant_name, participant_email, participant_phone, booking_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [eventId, session.userId, isPaidEvent ? "pending" : "confirmed", p.name, p.email, p.phone, bookingId],
+        `INSERT INTO registrations (event_id, user_id, status, participant_name, participant_email, participant_phone, booking_id, participant_semester, participant_enrollment_id, participant_gender, participant_branch) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        [eventId, session.userId, isPaidEvent ? "pending" : "confirmed", p.name, p.email, p.phone, bookingId, p.semester || null, p.enrollmentId || null, p.gender || null, p.branch || null],
       )
 
       const registrationId = result[0].id
@@ -160,6 +164,7 @@ export async function GET(request) {
     const result = await query(
       `SELECT r.id, r.status, r.status as attendance_status, r.created_at,
               r.participant_name, r.participant_email, r.participant_phone,
+              r.participant_semester, r.participant_enrollment_id, r.participant_gender, r.participant_branch,
               r.booking_id,
               u.name as user_name, u.email as user_email
        FROM registrations r

@@ -3,7 +3,7 @@ import fs from "fs";
 
 async function checkSchema() {
     try {
-        const tables = ['payments', 'events', 'registrations'];
+        const tables = ['payments', 'events', 'registrations', 'tasks', 'event_assignments'];
         const result = {};
         for (const table of tables) {
             result[table] = await query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${table}'`);

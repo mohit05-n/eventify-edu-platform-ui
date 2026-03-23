@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TicketCard } from "@/components/ticket-card"
 
 export default function EventDetailPage() {
@@ -67,7 +68,11 @@ export default function EventDetailPage() {
             setParticipants([{
                 name: session.name || "",
                 email: session.email || "",
-                phone: session.phone || ""
+                phone: session.phone || "",
+                enrollmentId: "",
+                semester: "",
+                branch: "",
+                gender: ""
             }])
         }
     }, [session])
@@ -123,7 +128,7 @@ export default function EventDetailPage() {
     }
 
     const addParticipant = () => {
-        setParticipants([...participants, { name: "", email: "", phone: "" }])
+        setParticipants([...participants, { name: "", email: "", phone: "", enrollmentId: "", semester: "", branch: "", gender: "" }])
     }
 
     const removeParticipant = (index) => {
@@ -708,7 +713,7 @@ export default function EventDetailPage() {
                                                             </div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                 <div className="space-y-2">
-                                                                    <Label htmlFor={`name-${index}`}>Full Name</Label>
+                                                                    <Label htmlFor={`name-${index}`}>Full Name <span className="text-destructive">*</span></Label>
                                                                     <Input
                                                                         id={`name-${index}`}
                                                                         placeholder="Enter full name"
@@ -717,7 +722,7 @@ export default function EventDetailPage() {
                                                                     />
                                                                 </div>
                                                                 <div className="space-y-2">
-                                                                    <Label htmlFor={`email-${index}`}>Email Address</Label>
+                                                                    <Label htmlFor={`email-${index}`}>Email Address <span className="text-destructive">*</span></Label>
                                                                     <Input
                                                                         id={`email-${index}`}
                                                                         type="email"
@@ -734,6 +739,50 @@ export default function EventDetailPage() {
                                                                         value={p.phone}
                                                                         onChange={(e) => updateParticipant(index, "phone", e.target.value)}
                                                                     />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor={`enrollmentId-${index}`}>Enrollment ID <span className="text-destructive">*</span></Label>
+                                                                    <Input
+                                                                        id={`enrollmentId-${index}`}
+                                                                        placeholder="e.g. EN21CS001"
+                                                                        value={p.enrollmentId || ""}
+                                                                        onChange={(e) => updateParticipant(index, "enrollmentId", e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor={`semester-${index}`}>Semester <span className="text-destructive">*</span></Label>
+                                                                    <Input
+                                                                        id={`semester-${index}`}
+                                                                        placeholder="e.g. 3rd Sem"
+                                                                        value={p.semester || ""}
+                                                                        onChange={(e) => updateParticipant(index, "semester", e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor={`branch-${index}`}>Branch <span className="text-destructive">*</span></Label>
+                                                                    <Input
+                                                                        id={`branch-${index}`}
+                                                                        placeholder="e.g. CSE, ECE, ME"
+                                                                        value={p.branch || ""}
+                                                                        onChange={(e) => updateParticipant(index, "branch", e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor={`gender-${index}`}>Gender <span className="text-destructive">*</span></Label>
+                                                                    <Select
+                                                                        value={p.gender || ""}
+                                                                        onValueChange={(val) => updateParticipant(index, "gender", val)}
+                                                                    >
+                                                                        <SelectTrigger id={`gender-${index}`}>
+                                                                            <SelectValue placeholder="Select gender" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="Male">Male</SelectItem>
+                                                                            <SelectItem value="Female">Female</SelectItem>
+                                                                            <SelectItem value="Other">Other</SelectItem>
+                                                                            <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 </div>
                                                             </div>
                                                         </div>

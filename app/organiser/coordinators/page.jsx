@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import {
     UserPlus,
@@ -29,6 +31,19 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 
 export default function CoordinatorsPage() {
+    const COMMON_TASKS = [
+        "Logistics Coordination",
+        "Registration & Helpdesk",
+        "Promotion & Social Media",
+        "Venue Setup",
+        "Guest/Speaker Management",
+        "Technical Support",
+        "Sponsorship & Branding",
+        "Certificate Preparation",
+        "Food & Refreshments",
+        "Volunteer Management"
+    ]
+
     const [session, setSession] = useState(null)
     const [coordinators, setCoordinators] = useState([])
     const [events, setEvents] = useState([])
@@ -46,14 +61,15 @@ export default function CoordinatorsPage() {
         phone: "",
         password: "",
         role: "student_coordinator",
-        event_id: "",
+        event_ids: [],
         college: ""
     })
     const [taskFormData, setTaskFormData] = useState({
         title: "",
         description: "",
         deadline: "",
-        priority: "medium"
+        priority: "medium",
+        event_ids: []
     })
     const router = useRouter()
 
@@ -69,7 +85,7 @@ export default function CoordinatorsPage() {
                 }
 
                 setSession(sessionData.session)
-                await Promise.all([fetchCoordinators(), fetchEvents(sessionData.session.userId)])
+                await Promise.all([fetchCoordinators(), fetchEvents(sessionData.session.userId, true)])
             } catch (error) {
                 console.error("[v0] Auth check error:", error)
                 router.push("/auth/login")
@@ -93,9 +109,10 @@ export default function CoordinatorsPage() {
         }
     }
 
-    const fetchEvents = async (userId) => {
+    const fetchEvents = async (userId, excludeExpired = false) => {
         try {
-            const response = await fetch(`/api/events/organiser?organiser_id=${userId}`)
+            const url = `/api/events/organiser?organiser_id=${userId}${excludeExpired ? '&exclude_expired=true' : ''}`
+            const response = await fetch(url)
             if (response.ok) {
                 const data = await response.json()
                 setEvents(Array.isArray(data) ? data : [])
@@ -153,7 +170,7 @@ export default function CoordinatorsPage() {
                     phone: "",
                     password: "",
                     role: "student_coordinator",
-                    event_id: "",
+                    event_ids: [],
                     college: ""
                 })
             }
@@ -183,7 +200,7 @@ export default function CoordinatorsPage() {
             phone: "",
             password: "",
             role: "student_coordinator",
-            event_id: "",
+            event_ids: [],
             college: ""
         })
     }
@@ -195,12 +212,24 @@ export default function CoordinatorsPage() {
     )
 
     const handleOpenTaskDialog = (coordinator) => {
-        setSelectedCoordinator(coordinator)
+        // Find all events assigned to this user id
+        const assignedEvents = coordinators
+            .filter(c => c.id === coordinator.id)
+            .map(c => ({
+                event_id: c.event_id,
+                event_title: c.event_title
+            }))
+
+        setSelectedCoordinator({
+            ...coordinator,
+            assignedEvents
+        })
         setTaskFormData({
             title: "",
             description: "",
             deadline: "",
-            priority: "medium"
+            priority: "medium",
+            event_ids: [String(coordinator.event_id)] // Default to current event
         })
         setShowTaskDialog(true)
     }
@@ -208,6 +237,10 @@ export default function CoordinatorsPage() {
     const handleCreateTask = async (e) => {
         e.preventDefault()
         if (!selectedCoordinator) return
+        if (taskFormData.event_ids.length === 0) {
+            toast.error("Please select at least one event")
+            return
+        }
 
         setIsCreatingTask(true)
         try {
@@ -215,7 +248,7 @@ export default function CoordinatorsPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    event_id: selectedCoordinator.event_id,
+                    event_ids: taskFormData.event_ids,
                     title: taskFormData.title,
                     description: taskFormData.description,
                     assigned_to: selectedCoordinator.id,
@@ -454,19 +487,32 @@ export default function CoordinatorsPage() {
                                     </Select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium">Assign to Event *</label>
-                                    <Select value={formData.event_id} onValueChange={(v) => setFormData(prev => ({ ...prev, event_id: v }))}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select event" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {events.map(event => (
-                                                <SelectItem key={event.id} value={String(event.id)}>
+                                    <label className="text-sm font-medium mb-1.5 block">Assign to Events *</label>
+                                    <div className="border rounded-md p-3 max-h-[180px] overflow-y-auto space-y-2 bg-muted/5">
+                                        {events.map((event) => (
+                                            <div key={event.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`event-${event.id}`}
+                                                    checked={formData.event_ids.includes(String(event.id))}
+                                                    onCheckedChange={(checked) => {
+                                                        const eventId = String(event.id);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            event_ids: checked
+                                                                ? [...prev.event_ids, eventId]
+                                                                : prev.event_ids.filter(id => id !== eventId)
+                                                        }))
+                                                    }}
+                                                />
+                                                <Label htmlFor={`event-${event.id}`} className="text-sm font-normal cursor-pointer leading-tight">
                                                     {event.title}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                                </Label>
+                                            </div>
+                                        ))}
+                                        {events.length === 0 && (
+                                            <p className="text-xs text-muted-foreground py-2 text-center italic">No active events found</p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium">College/Institution</label>
@@ -508,55 +554,97 @@ export default function CoordinatorsPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateTask} className="space-y-4">
-                        <div>
-                            <label className="text-sm font-medium">Task Title *</label>
-                            <Input
-                                value={taskFormData.title}
-                                onChange={(e) => setTaskFormData(prev => ({ ...prev, title: e.target.value }))}
-                                placeholder="e.g., Prepare event materials"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium">Description</label>
-                            <Textarea
-                                value={taskFormData.description}
-                                onChange={(e) => setTaskFormData(prev => ({ ...prev, description: e.target.value }))}
-                                placeholder="Describe what needs to be done..."
-                                rows={3}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
                             <div>
-                                <label className="text-sm font-medium">Deadline</label>
-                                <Input
-                                    type="datetime-local"
-                                    value={taskFormData.deadline}
-                                    onChange={(e) => setTaskFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                                <div>
+                                    <label className="text-sm font-medium">Pick a Template (Optional)</label>
+                                    <Select
+                                        onValueChange={(v) => setTaskFormData(prev => ({ ...prev, title: v }))}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Common tasks..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {COMMON_TASKS.map(task => (
+                                                <SelectItem key={task} value={task}>{task}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-medium">Task Title *</label>
+                                    <Input
+                                        value={taskFormData.title}
+                                        onChange={(e) => setTaskFormData(prev => ({ ...prev, title: e.target.value }))}
+                                        placeholder="Enter or refine task title..."
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium">Description</label>
+                                <Textarea
+                                    value={taskFormData.description}
+                                    onChange={(e) => setTaskFormData(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Describe what needs to be done..."
+                                    rows={3}
                                 />
                             </div>
-                            <div>
-                                <label className="text-sm font-medium">Priority</label>
-                                <Select
-                                    value={taskFormData.priority}
-                                    onValueChange={(v) => setTaskFormData(prev => ({ ...prev, priority: v }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                    </SelectContent>
-                                </Select>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">Deadline</label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={taskFormData.deadline}
+                                        onChange={(e) => setTaskFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Priority</label>
+                                    <Select
+                                        value={taskFormData.priority}
+                                        onValueChange={(v) => setTaskFormData(prev => ({ ...prev, priority: v }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-3">
-                            <p className="text-xs text-muted-foreground">
-                                <strong>Assigning to:</strong> {selectedCoordinator?.name}<br />
-                                <strong>Event:</strong> {selectedCoordinator?.event_title}
-                            </p>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium block">Assign for Events *</label>
+                                <div className="border rounded-md p-3 max-h-[120px] overflow-y-auto space-y-2 bg-muted/5">
+                                    {selectedCoordinator?.assignedEvents?.map((event) => (
+                                        <div key={event.event_id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`task-event-${event.event_id}`}
+                                                checked={taskFormData.event_ids.includes(String(event.event_id))}
+                                                onCheckedChange={(checked) => {
+                                                    const eventId = String(event.event_id);
+                                                    setTaskFormData(prev => ({
+                                                        ...prev,
+                                                        event_ids: checked
+                                                            ? [...prev.event_ids, eventId]
+                                                            : prev.event_ids.filter(id => id !== eventId)
+                                                    }))
+                                                }}
+                                            />
+                                            <Label htmlFor={`task-event-${event.event_id}`} className="text-sm font-normal cursor-pointer leading-tight">
+                                                {event.event_title}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                         <div className="flex gap-2 pt-2">
                             <Button
@@ -575,6 +663,6 @@ export default function CoordinatorsPage() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </DashboardLayout>
+        </DashboardLayout >
     )
 }

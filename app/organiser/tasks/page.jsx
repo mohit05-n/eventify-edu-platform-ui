@@ -70,7 +70,7 @@ export default function OrganiserTasksPage() {
 
                 setSession(sessionData.session)
                 await Promise.all([
-                    fetchEvents(sessionData.session.userId),
+                    fetchEvents(sessionData.session.userId, true),
                     fetchCoordinators()
                 ])
             } catch (error) {
@@ -90,9 +90,10 @@ export default function OrganiserTasksPage() {
         }
     }, [events, selectedEvent])
 
-    const fetchEvents = async (userId) => {
+    const fetchEvents = async (userId, excludeExpired = false) => {
         try {
-            const response = await fetch(`/api/events/organiser?organiser_id=${userId}`)
+            const url = `/api/events/organiser?organiser_id=${userId}${excludeExpired ? '&exclude_expired=true' : ''}`
+            const response = await fetch(url)
             if (response.ok) {
                 const data = await response.json()
                 setEvents(Array.isArray(data) ? data : [])

@@ -11,13 +11,14 @@ export async function GET(request) {
 
     const searchParams = request.nextUrl.searchParams
     const organiserId = searchParams.get("organiser_id")
+    const excludeExpired = searchParams.get("exclude_expired") === "true"
 
     // Use session userId if not provided (for security)
     const targetOrganiserId = organiserId || session.userId
 
-    // Get events with registration count and certificate count
-    const results = await query(
-      `SELECT 
+    // Build the query
+    let queryText = `
+      SELECT 
         e.*,
         COALESCE(r.registration_count, 0) as current_capacity,
         COALESCE(r.certificates_issued_count, 0) as certificates_issued_count
@@ -31,9 +32,15 @@ export async function GET(request) {
          GROUP BY event_id
        ) r ON e.id = r.event_id
        WHERE e.organiser_id = $1
-       ORDER BY e.created_at DESC`,
-      [targetOrganiserId]
-    )
+    `
+
+    if (excludeExpired) {
+      queryText += ` AND e.end_date >= CURRENT_TIMESTAMP`
+    }
+
+    queryText += ` ORDER BY e.created_at DESC`
+
+    const results = await query(queryText, [targetOrganiserId])
 
     return NextResponse.json(results || [], { status: 200 })
   } catch (error) {

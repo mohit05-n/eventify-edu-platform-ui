@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
     Calendar, MapPin, Users, Clock, Edit, ArrowLeft, Loader2,
-    User, IndianRupee, Eye, Mail, CheckCircle, XCircle, AlertCircle, Mic, Award
+    User, IndianRupee, Eye, Mail, CheckCircle, XCircle, AlertCircle, Mic, Award, Download
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -71,6 +71,38 @@ export default function OrganiserEventDetailPage() {
         } finally {
             setIssuingCertificates(false)
         }
+    }
+
+    const handleDownloadCSV = () => {
+        if (participants.length === 0) {
+            toast.error("No participants to export")
+            return
+        }
+
+        const headers = ["Name", "Email", "Phone", "Booking ID", "Status", "Registration Date"]
+        const rows = participants.map(p => [
+            p.participant_name || p.user_name || "",
+            p.participant_email || p.user_email || "",
+            p.participant_phone || "",
+            p.booking_id || `REG-${p.id}`,
+            p.status || "confirmed",
+            new Date(p.registered_at || p.created_at).toLocaleDateString()
+        ])
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `participants_${event.title.replace(/\s+/g, '_').toLowerCase()}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success("Participant list downloaded!")
     }
 
     if (isLoading) {
@@ -351,6 +383,14 @@ export default function OrganiserEventDetailPage() {
                                         : !isExpired
                                             ? "Event In Progress"
                                             : "Issue Certificates"}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2 border-primary/20 hover:bg-primary/5"
+                                onClick={handleDownloadCSV}
+                            >
+                                <Download className="w-4 h-4 text-primary" />
+                                Download Participants (CSV)
                             </Button>
                         </CardContent>
                     </Card>

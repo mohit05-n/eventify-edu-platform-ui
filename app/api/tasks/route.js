@@ -62,56 +62,65 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { event_id, title, description, assigned_to, deadline, priority } = body;
+        const { event_ids, event_id, title, description, assigned_to, deadline, priority } = body;
 
-        if (!event_id || !title) {
-            return NextResponse.json({ error: "Event ID and title are required" }, { status: 400 });
+        // Support both single event_id and array event_ids
+        const ids = event_ids || (event_id ? [event_id] : []);
+
+        if (ids.length === 0 || !title) {
+            return NextResponse.json({ error: "Event ID(s) and title are required" }, { status: 400 });
         }
 
-        const task = await TaskDB.create({
-            event_id,
-            title,
-            description,
-            assigned_to,
-            assigned_by: session.userId,
-            deadline,
-            priority
-        });
+        const createdTasks = [];
 
-        // Create notification and send email for assigned user
-        if (assigned_to) {
-            await NotificationDB.create({
-                user_id: assigned_to,
-                title: "New Task Assigned",
-                message: `You have been assigned a new task: ${title}`,
-                type: "task_assigned",
-                related_event_id: event_id,
-                related_task_id: task.id
+        for (const targetEventId of ids) {
+            const task = await TaskDB.create({
+                event_id: targetEventId,
+                title,
+                description,
+                assigned_to,
+                assigned_by: session.userId,
+                deadline,
+                priority
             });
 
-            // Send task assignment email
-            try {
-                const [assignedUser, event] = await Promise.all([
-                    UserDB.getById(assigned_to),
-                    EventDB.getById(event_id)
-                ]);
-                if (assignedUser?.email) {
-                    await sendEmail(assignedUser.email, "taskAssigned", {
-                        coordinatorName: assignedUser.name,
-                        taskTitle: title,
-                        taskDescription: description,
-                        eventTitle: event?.title || "Unknown Event",
-                        deadline,
-                        priority,
-                        assignedBy: session.name
-                    });
+            createdTasks.push(task);
+
+            // Create notification and send email for assigned user
+            if (assigned_to) {
+                await NotificationDB.create({
+                    user_id: assigned_to,
+                    title: "New Task Assigned",
+                    message: `You have been assigned a new task: ${title}`,
+                    type: "task_assigned",
+                    related_event_id: targetEventId,
+                    related_task_id: task.id
+                });
+
+                // Send task assignment email
+                try {
+                    const [assignedUser, event] = await Promise.all([
+                        UserDB.getById(assigned_to),
+                        EventDB.getById(targetEventId)
+                    ]);
+                    if (assignedUser?.email) {
+                        await sendEmail(assignedUser.email, "taskAssigned", {
+                            coordinatorName: assignedUser.name,
+                            taskTitle: title,
+                            taskDescription: description,
+                            eventTitle: event?.title || "Unknown Event",
+                            deadline,
+                            priority,
+                            assignedBy: session.name
+                        });
+                    }
+                } catch (emailErr) {
+                    console.error("[v0] Task email error:", emailErr);
                 }
-            } catch (emailErr) {
-                console.error("[v0] Task email error:", emailErr);
             }
         }
 
-        return NextResponse.json(task, { status: 201 });
+        return NextResponse.json(createdTasks.length === 1 ? createdTasks[0] : createdTasks, { status: 201 });
     } catch (error) {
         console.error("[v0] Create task error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

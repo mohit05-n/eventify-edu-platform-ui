@@ -53,20 +53,29 @@ export async function GET(request) {
     }
 }
 
-// POST - Create new coordinator and assign to event
+// POST - Create new coordinator and assign to one or more events
 export async function POST(request) {
     try {
         const session = await getSession();
-        if (!session || session.role !== "organiser") {
+        if (!session || !["organiser", "admin", "event_coordinator"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { name, email, phone, password, role, event_id, college } = await request.json();
+        const body = await request.json();
+        const { name, email, phone, password, role, event_id, event_ids, college } = body;
+
+        // Normalize event IDs to an array
+        let targetEventIds = [];
+        if (Array.isArray(event_ids)) {
+            targetEventIds = event_ids;
+        } else if (event_id) {
+            targetEventIds = [event_id];
+        }
 
         // Validate required fields
-        if (!name || !email || !password || !role || !event_id) {
+        if (!name || !email || !password || !role || targetEventIds.length === 0) {
             return NextResponse.json({
-                error: "Name, email, password, role, and event are required"
+                error: "Name, email, password, role, and at least one event are required"
             }, { status: 400 });
         }
 
@@ -77,60 +86,106 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // Check if organizer owns the event
-        const eventCheck = await query(
-            "SELECT id, title FROM events WHERE id = $1 AND organiser_id = $2",
-            [event_id, session.userId]
-        );
-
-        if (eventCheck.length === 0) {
-            return NextResponse.json({ error: "Event not found or access denied" }, { status: 404 });
-        }
-
-        const eventTitle = eventCheck[0].title;
-
         // Check if email already exists
         const existingUser = await query("SELECT id FROM users WHERE email = $1", [email]);
 
-        let userId;
-        let isNewUser = false;
-        const plainPassword = password; // Store plain password for email before hashing
-
         if (existingUser.length > 0) {
-            // User exists, just assign to event
-            userId = existingUser[0].id;
-        } else {
-            // Create new user
-            isNewUser = true;
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const newUser = await query(
-                `INSERT INTO users (email, password, name, role, phone, college) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-                [email, hashedPassword, name, role, phone || null, college || null]
-            );
-
-            userId = newUser[0].id;
-        }
-
-        // Check if already assigned to this event
-        const existingAssignment = await query(
-            "SELECT id FROM event_assignments WHERE event_id = $1 AND user_id = $2",
-            [event_id, userId]
-        );
-
-        if (existingAssignment.length > 0) {
             return NextResponse.json({
-                error: "This coordinator is already assigned to this event"
+                error: "This email is already registered. Please use a different email or manage existing coordinator."
             }, { status: 400 });
         }
 
-        // Create assignment
-        await query(
-            `INSERT INTO event_assignments (event_id, user_id, role, assigned_by) 
-       VALUES ($1, $2, $3, $4)`,
-            [event_id, userId, role, session.userId]
+        // Create new user
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await query(
+            `INSERT INTO users (email, password, name, role, phone, college) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [email, hashedPassword, name, role, phone || null, college || null]
         );
+
+        const userId = newUser[0].id;
+        const isNewUser = true;
+        const plainPassword = password;
+
+        const assignmentsCreated = [];
+        const errors = [];
+        const eventTitles = [];
+
+        // Process assignments for each event
+        for (const eid of targetEventIds) {
+            try {
+                // Check permission for this specific event
+                let eventCheck;
+                if (session.role === "admin") {
+                    eventCheck = await query("SELECT id, title FROM events WHERE id = $1", [eid]);
+                } else if (session.role === "organiser") {
+                    eventCheck = await query(
+                        "SELECT id, title FROM events WHERE id = $1 AND organiser_id = $2",
+                        [eid, session.userId]
+                    );
+                } else if (session.role === "event_coordinator") {
+                    eventCheck = await query(
+                        `SELECT e.id, e.title 
+                         FROM events e
+                         JOIN event_assignments ea ON e.id = ea.event_id
+                         WHERE e.id = $1 AND ea.user_id = $2 AND ea.role = 'event_coordinator'`,
+                        [eid, session.userId]
+                    );
+                }
+
+                if (!eventCheck || eventCheck.length === 0) {
+                    errors.push(`Event ${eid}: Not found or access denied`);
+                    continue;
+                }
+
+                const eventTitle = eventCheck[0].title;
+                eventTitles.push(eventTitle);
+
+                // Check if already assigned to this event
+                const existingAssignment = await query(
+                    "SELECT id FROM event_assignments WHERE event_id = $1 AND user_id = $2",
+                    [eid, userId]
+                );
+
+                if (existingAssignment.length > 0) {
+                    errors.push(`Event "${eventTitle}": User already assigned`);
+                    continue;
+                }
+
+                // Create assignment
+                await query(
+                    `INSERT INTO event_assignments (event_id, user_id, role, assigned_by) 
+           VALUES ($1, $2, $3, $4)`,
+                    [eid, userId, role, session.userId]
+                );
+
+                // Create notification for the coordinator
+                await query(
+                    `INSERT INTO notifications (user_id, title, message, type, related_event_id) 
+           VALUES ($1, $2, $3, $4, $5)`,
+                    [
+                        userId,
+                        "You've been assigned as coordinator",
+                        `You have been assigned as ${role === 'event_coordinator' ? 'Faculty Coordinator' : 'Student Coordinator'} for "${eventTitle}"`,
+                        "general",
+                        eid
+                    ]
+                );
+
+                assignmentsCreated.push(eventTitle);
+            } catch (err) {
+                console.error(`Error processing event ${eid}:`, err);
+                errors.push(`Event ${eid}: Internal error`);
+            }
+        }
+
+        if (assignmentsCreated.length === 0) {
+            return NextResponse.json({
+                error: "Failed to create any assignments",
+                details: errors
+            }, { status: 400 });
+        }
 
         // Send welcome email to new coordinators
         if (isNewUser) {
@@ -139,29 +194,18 @@ export async function POST(request) {
                 email,
                 password: plainPassword,
                 role,
-                eventTitle,
+                eventTitle: assignmentsCreated.join(", "),
                 organizerName: session.name
             });
         }
 
-        // Create notification for the coordinator
-        await query(
-            `INSERT INTO notifications (user_id, title, message, type, related_event_id) 
-       VALUES ($1, $2, $3, $4, $5)`,
-            [
-                userId,
-                "You've been assigned as coordinator",
-                `You have been assigned as ${role === 'event_coordinator' ? 'Faculty Coordinator' : 'Student Coordinator'} for "${eventTitle}"`,
-                "general",
-                event_id
-            ]
-        );
-
         return NextResponse.json({
             success: true,
             message: isNewUser
-                ? "Coordinator created and assigned successfully. Welcome email sent."
-                : "Existing user assigned to event successfully.",
+                ? `Coordinator created and assigned to ${assignmentsCreated.length} event(s). Welcome email sent.`
+                : `User assigned to ${assignmentsCreated.length} new event(s).`,
+            assignments: assignmentsCreated,
+            skipped: errors,
             userId,
             isNewUser
         }, { status: 201 });
